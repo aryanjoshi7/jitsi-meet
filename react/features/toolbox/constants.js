@@ -27,5 +27,3 @@ export const THRESHOLDS = [
         order: [ 'microphone', 'camera' ]
     }
 ];
-
-export const NOT_APPLICABLE = 'N/A';

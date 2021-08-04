@@ -3,6 +3,7 @@
 import { translate } from '../../../base/i18n';
 import { IconShareDesktop } from '../../../base/icons';
 import JitsiMeetJS from '../../../base/lib-jitsi-meet/_';
+import { getParticipants } from '../../../base/participants';
 import { connect } from '../../../base/redux';
 import { AbstractButton, type AbstractButtonProps } from '../../../base/toolbox/components';
 import { getLocalVideoTrack } from '../../../base/tracks';
@@ -122,7 +123,9 @@ const mapStateToProps = state => {
     if (enableFeaturesBasedOnToken) {
         // we enable desktop sharing if any participant already have this
         // feature enabled
-        desktopSharingEnabled = state['features/base/participants'].haveParticipantWithScreenSharingFeature;
+        desktopSharingEnabled = getParticipants(state)
+            .find(({ features = {} }) =>
+                String(features['screen-sharing']) === 'true') !== undefined;
         desktopSharingDisabledTooltipKey = 'dialog.shareYourScreenDisabled';
     }
 

@@ -22,7 +22,7 @@ import { MuteEveryonesVideoDialog } from '../../video-menu/components';
 import {
     ContextMenu,
     ContextMenuItem
-} from './web/styled';
+} from './styled';
 
 const useStyles = makeStyles(() => {
     return {

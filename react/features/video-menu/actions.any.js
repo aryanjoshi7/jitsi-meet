@@ -106,4 +106,3 @@ export function muteAllParticipants(exclude: Array<string>, mediaType: MEDIA_TYP
         });
     };
 }
-

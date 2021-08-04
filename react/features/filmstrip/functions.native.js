@@ -25,4 +25,3 @@ export function isFilmstripVisible(stateful: Object | Function) {
 
     return getParticipantCountWithFake(state) > 1;
 }
-

@@ -5,7 +5,7 @@ import React from 'react';
 import { QUICK_ACTION_BUTTON } from '../constants';
 
 import AskToUnmuteButton from './AskToUnmuteButton';
-import { QuickActionButton } from './web/styled';
+import { QuickActionButton } from './styled';
 
 type Props = {
 

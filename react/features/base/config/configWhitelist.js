@@ -131,7 +131,6 @@ export default [
     'gatherStats',
     'googleApiApplicationClientID',
     'hideConferenceSubject',
-    'hideRecordingLabel',
     'hideParticipantsStats',
     'hideConferenceTimer',
     'hiddenDomain',

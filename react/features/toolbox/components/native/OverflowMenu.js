@@ -4,13 +4,11 @@ import React, { PureComponent } from 'react';
 
 import { ColorSchemeRegistry } from '../../../base/color-scheme';
 import { BottomSheet, hideDialog, isDialogOpen } from '../../../base/dialog';
-import { getFeatureFlag, REACTIONS_ENABLED } from '../../../base/flags';
 import { connect } from '../../../base/redux';
 import { StyleType } from '../../../base/styles';
 import { SharedDocumentButton } from '../../../etherpad';
 import { InviteButton } from '../../../invite';
 import { AudioRouteButton } from '../../../mobile/audio-mode';
-import { ParticipantsPaneButton } from '../../../participants-pane/components/native';
 import { ReactionMenu } from '../../../reactions/components';
 import { LiveStreamButton, RecordButton } from '../../../recording';
 import SecurityDialogButton from '../../../security/components/security-dialog/SecurityDialogButton';
@@ -23,7 +21,6 @@ import MuteEveryoneButton from '../MuteEveryoneButton';
 import MuteEveryonesVideoButton from '../MuteEveryonesVideoButton';
 
 import AudioOnlyButton from './AudioOnlyButton';
-import RaiseHandButton from './RaiseHandButton';
 import ScreenSharingButton from './ScreenSharingButton.js';
 import ToggleCameraButton from './ToggleCameraButton';
 
@@ -51,11 +48,6 @@ type Props = {
      * The width of the screen.
      */
     _width: number,
-
-    /**
-     * Whether or not the reactions feature is enabled.
-     */
-    _reactionsEnabled: boolean,
 
     /**
      * Used for hiding the dialog when the selection was completed.
@@ -109,7 +101,7 @@ class OverflowMenu extends PureComponent<Props, State> {
      * @returns {ReactElement}
      */
     render() {
-        const { _bottomSheetStyles, _width, _reactionsEnabled } = this.props;
+        const { _bottomSheetStyles, _width } = this.props;
         const toolbarButtons = getMovableButtons(_width);
 
         const buttonProps = {
@@ -135,14 +127,12 @@ class OverflowMenu extends PureComponent<Props, State> {
         return (
             <BottomSheet
                 onCancel = { this._onCancel }
-                renderFooter = { _reactionsEnabled && !toolbarButtons.has('raisehand')
-                    ? this._renderReactionMenu
-                    : null }>
+                renderFooter = { toolbarButtons.has('raisehand')
+                    ? null
+                    : this._renderReactionMenu }>
                 <AudioRouteButton { ...topButtonProps } />
-                <ParticipantsPaneButton { ...buttonProps } />
                 {!toolbarButtons.has('invite') && <InviteButton { ...buttonProps } />}
                 <AudioOnlyButton { ...buttonProps } />
-                {!_reactionsEnabled && !toolbarButtons.has('raisehand') && <RaiseHandButton { ...buttonProps } />}
                 <SecurityDialogButton { ...buttonProps } />
                 <ScreenSharingButton { ...buttonProps } />
                 {!toolbarButtons.has('togglecamera') && <ToggleCameraButton { ...buttonProps } />}
@@ -202,8 +192,7 @@ function _mapStateToProps(state) {
     return {
         _bottomSheetStyles: ColorSchemeRegistry.get(state, 'BottomSheet'),
         _isOpen: isDialogOpen(state, OverflowMenu_),
-        _width: state['features/base/responsive-ui'].clientWidth,
-        _reactionsEnabled: getFeatureFlag(state, REACTIONS_ENABLED, false)
+        _width: state['features/base/responsive-ui'].clientWidth
     };
 }
 

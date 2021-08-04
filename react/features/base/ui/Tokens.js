@@ -33,8 +33,7 @@ export const colors = {
     success04: '#189B55',
     success05: '#1EC26A',
 
-    warning05: '#F8AE1A',
-    warning06: '#ED9E1B'
+    warning05: '#F8AE1A'
 };
 
 // Mapping between the token used and the color
@@ -198,24 +197,20 @@ export const colorMap = {
     success02: 'success05',
 
     // Color for warning messages applied to icons, borders & backgrounds
-    warning01: 'warning05',
-
-    // Color for indicating a raised hand
-    warning02: 'warning06'
+    warning01: 'warning05'
 };
 
 
 export const font = {
-    weightRegular: '400',
-    weightSemiBold: '600'
+    weightRegular: 400,
+    weightSemiBold: 600
 };
 
 export const shape = {
-    borderRadius: 6,
-    boxShadow: 'inset 0px -1px 0px rgba(255, 255, 255, 0.15)'
+    borderRadius: 6
 };
 
-export const spacing = [ 0, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80 ];
+export const spacing = [ 0, 4, 8, 16, 24, 32, 40, 48, 56 ];
 
 export const typography = {
     labelRegular: {
