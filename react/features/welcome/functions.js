@@ -41,9 +41,8 @@ export function isWelcomePageAppEnabled(stateful: Function | Object) {
  * {@code true}; otherwise, {@code false}.
  */
 export function isWelcomePageUserEnabled(stateful: Function | Object) {
-    return false;
-    // return (
-    //     typeof APP === 'undefined'
-    //         ? true
-    //         : toState(stateful)['features/base/config'].enableWelcomePage);
+    return (
+        typeof APP === 'undefined'
+            ? true
+            : toState(stateful)['features/base/config'].enableWelcomePage);
 }
