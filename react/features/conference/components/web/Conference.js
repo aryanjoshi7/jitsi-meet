@@ -2,23 +2,19 @@
 
 import _ from 'lodash';
 import React from 'react';
-
+const { v4: uuidv4 } = require('uuid');
 import VideoLayout from '../../../../../modules/UI/videolayout/VideoLayout';
-import AudioModerationNotifications from '../../../av-moderation/components/AudioModerationNotifications';
 import { getConferenceNameForTitle } from '../../../base/conference';
 import { connect, disconnect } from '../../../base/connection';
 import { translate } from '../../../base/i18n';
 import { connect as reactReduxConnect } from '../../../base/redux';
-import { setColorAlpha } from '../../../base/util';
 import { Chat } from '../../../chat';
 import { Filmstrip } from '../../../filmstrip';
 import { CalleeInfoContainer } from '../../../invite';
 import { LargeVideo } from '../../../large-video';
 import { KnockingParticipantList, LobbyScreen } from '../../../lobby';
-import { ParticipantsPane } from '../../../participants-pane/components';
-import { getParticipantsPaneOpen } from '../../../participants-pane/functions';
 import { Prejoin, isPrejoinPageVisible } from '../../../prejoin';
-import { fullScreenChanged, showToolbox } from '../../../toolbox/actions.web';
+import { fullScreenChanged, setToolboxAlwaysVisible, showToolbox } from '../../../toolbox/actions.web';
 import { Toolbox } from '../../../toolbox/components/web';
 import { LAYOUTS, getCurrentLayout } from '../../../video-layout';
 import { maybeShowSuboptimalExperienceNotification } from '../../functions';
@@ -28,10 +24,16 @@ import {
 } from '../AbstractConference';
 import type { AbstractProps } from '../AbstractConference';
 
-import ConferenceInfo from './ConferenceInfo';
+import { setTileView } from '../../../video-layout/actions';
+
+import Labels from './Labels';
 import { default as Notice } from './Notice';
+import { pinParticipant } from '../../../base/participants';
+
+import { MM_BROADCASTER } from '../../../toolbox/actionTypes';
 
 declare var APP: Object;
+declare var config: Object;
 declare var interfaceConfig: Object;
 
 /**
@@ -66,9 +68,9 @@ const LAYOUT_CLASSNAMES = {
 type Props = AbstractProps & {
 
     /**
-     * The alpha(opacity) of the background
+     * Whether the local participant is recording the conference.
      */
-    _backgroundAlpha: number,
+    _iAmRecorder: boolean,
 
     /**
      * Returns true if the 'lobby screen' is visible.
@@ -76,20 +78,10 @@ type Props = AbstractProps & {
     _isLobbyScreenVisible: boolean,
 
     /**
-     * If participants pane is visible or not.
-     */
-    _isParticipantsPaneVisible: boolean,
-
-    /**
      * The CSS class to apply to the root of {@link Conference} to modify the
      * application layout.
      */
     _layoutClassName: string,
-
-    /**
-     * The config specified interval for triggering mouseMoved iframe api events
-     */
-    _mouseMoveCallbackInterval: number,
 
     /**
      * Name for this conference room.
@@ -105,19 +97,19 @@ type Props = AbstractProps & {
     t: Function
 }
 
+
+
 /**
  * The conference page of the Web application.
  */
 class Conference extends AbstractConference<Props, *> {
     _onFullScreenChange: Function;
-    _onMouseEnter: Function;
-    _onMouseLeave: Function;
-    _onMouseMove: Function;
     _onShowToolbar: Function;
-    _originalOnMouseMove: Function;
     _originalOnShowToolbar: Function;
-    _setBackground: Function;
-
+    client: any;
+    meeting_id: any;
+    user_id: any;
+    
     /**
      * Initializes a new Conference instance.
      *
@@ -127,13 +119,9 @@ class Conference extends AbstractConference<Props, *> {
     constructor(props) {
         super(props);
 
-        const { _mouseMoveCallbackInterval } = props;
-
         // Throttle and bind this component's mousemove handler to prevent it
         // from firing too often.
         this._originalOnShowToolbar = this._onShowToolbar;
-        this._originalOnMouseMove = this._onMouseMove;
-
         this._onShowToolbar = _.throttle(
             () => this._originalOnShowToolbar(),
             100,
@@ -141,18 +129,12 @@ class Conference extends AbstractConference<Props, *> {
                 leading: true,
                 trailing: false
             });
-
-        this._onMouseMove = _.throttle(
-            event => this._originalOnMouseMove(event),
-            _mouseMoveCallbackInterval,
-            {
-                leading: true,
-                trailing: false
-            });
-
+            
+        this.client = new WebSocket(`ws://localhost:8000/ws/${this.props._roomName.replace(/\s/g, '')}`);
+        this.meeting_id = null;
+        this.user_id = null;
         // Bind event handler so it is only bound once for every instance.
         this._onFullScreenChange = this._onFullScreenChange.bind(this);
-        this._setBackground = this._setBackground.bind(this);
     }
 
     /**
@@ -161,8 +143,50 @@ class Conference extends AbstractConference<Props, *> {
      * @inheritdoc
      */
     componentDidMount() {
-        document.title = `${this.props._roomName} | ${interfaceConfig.APP_NAME}`;
+        document.title = `Mirror | Mirror Meeting`;
+        console.log(document.title);
+        console.log(this.props._roomName.replace(/\s/g, ''));
         this._start();
+        this.client.onopen = () => {
+            console.log('CONNECTIONOPENCONNECTIONOPENCONNECTIONOPENCONNECTIONOPENCONNECTIONOPENCONNECTIONOPENCONNECTIONOPEN');
+            let uuid = uuidv4();
+            console.log(uuid);
+            this.client.send(JSON.stringify({"message": "jitsi-connect", "user": uuid, "displayname": "philip", "mobile": false}));
+        };
+        this.client.onmessage = (message) => {
+            console.log(message);
+            console.log('RECEIVEDMESSAGERECEIVEDMESSAGERECEIVEDMESSAGERECEIVEDMESSAGERECEIVEDMESSAGERECEIVEDMESSAGE');
+            console.log(message.data);
+            console.log(JSON.parse(message.data));
+            if(JSON.parse(message.data).message === "jitsi-start-broadcast") {
+                console.log("Received right message");
+                const { dispatch } = this.props;
+                dispatch(setTileView(false));
+                dispatch(pinParticipant(JSON.parse(message.data).jitsiID));
+                dispatch({type: MM_BROADCASTER, broadcaster: JSON.parse(message.data).jitsiID});
+                this.meeting_id = JSON.parse(message.data).meetingID;
+                console.log("MEETING ID IN CONFERENCE $!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                console.log(this.meeting_id);
+            }
+            if(JSON.parse(message.data).message === "jitsi-stop-broadcast") {
+                console.log("Received right message");
+                const { dispatch } = this.props;
+                dispatch(pinParticipant(null));
+                dispatch({type: MM_BROADCASTER, broadcaster: null});
+                dispatch(setTileView(true));
+            }
+            if(JSON.parse(message.data).message === "hi") {
+                console.log("Received HIHIHIIHIHIHHHHIHIIIHHHHIHHIHIOHIHIHIIHIHIHHHHIHIIIHHHHIHHIHIOHIHIHIIHIHIHHHHIHIIIHHHHIHHIHIOHIHIHIIHIHIHHHHIHIIIHHHHIHHIHIO");
+                this.meeting_id = JSON.parse(message.data).meetingID;
+                this.user_id = JSON.parse(message.data).userID;
+                console.log(this.meeting_id);
+                console.log(this.user_id);
+                this.forceUpdate();
+            }
+        };
+        this.client.onclose = () => {
+            console.log('DISCONNECTEDDISCONNECTEDDISCONNECTEDDISCONNECTEDDISCONNECTEDDISCONNECTEDDISCONNECTEDDISCONNECTED');
+        }
     }
 
     /**
@@ -198,7 +222,6 @@ class Conference extends AbstractConference<Props, *> {
 
         APP.conference.isJoined() && this.props.dispatch(disconnect());
     }
-
     /**
      * Implements React's {@link Component#render()}.
      *
@@ -207,78 +230,47 @@ class Conference extends AbstractConference<Props, *> {
      */
     render() {
         const {
+            // XXX The character casing of the name filmStripOnly utilized by
+            // interfaceConfig is obsolete but legacy support is required.
+            filmStripOnly: filmstripOnly
+        } = interfaceConfig;
+        const {
+            _iAmRecorder,
             _isLobbyScreenVisible,
-            _isParticipantsPaneVisible,
             _layoutClassName,
             _showPrejoin
         } = this.props;
-
+        const hideLabels = filmstripOnly || _iAmRecorder;
+        
+        if(this.client.readyState === 1) {
+            // this.client.send(JSON.stringify({"message": "pong"}));
+        }
         return (
             <div
-                id = 'layout_wrapper'
-                onMouseEnter = { this._onMouseEnter }
-                onMouseLeave = { this._onMouseLeave }
-                onMouseMove = { this._onMouseMove } >
-                <div
-                    className = { _layoutClassName }
-                    id = 'videoconference_page'
-                    onMouseMove = { this._onShowToolbar }
-                    ref = { this._setBackground }>
-                    <ConferenceInfo />
+                className = { _layoutClassName }
+                id = 'videoconference_page'
+                onMouseMove = { this._onShowToolbar }>
 
-                    <Notice />
-                    <div id = 'videospace'>
-                        <LargeVideo />
-                        {!_isParticipantsPaneVisible
-                         && <div id = 'notification-participant-list'>
-                             <KnockingParticipantList />
-                             <AudioModerationNotifications />
-                         </div>}
-                        <Filmstrip />
-                    </div>
-
-                    { _showPrejoin || _isLobbyScreenVisible || <Toolbox /> }
-                    <Chat />
-
-                    { this.renderNotificationsContainer() }
-
-                    <CalleeInfoContainer />
-
-                    { _showPrejoin && <Prejoin />}
-
+                <Notice />
+                <div id = 'videospace'>
+                    <LargeVideo websocket = { this.client } />
+                    <KnockingParticipantList websocket = { this.client } />
+                    <Filmstrip filmstripOnly = { filmstripOnly } websocket = { this.client } />
+                    { hideLabels || <Labels /> }
                 </div>
-                <ParticipantsPane />
+
+                { filmstripOnly || _showPrejoin || _isLobbyScreenVisible || <Toolbox websocket = { this.client } roomName = {this.props._roomName} 
+                                                                                     meeting_id = { this.meeting_id }
+                /> }
+                { filmstripOnly || <Chat /> }
+
+                { this.renderNotificationsContainer() }
+
+                <CalleeInfoContainer />
+
+                { !filmstripOnly && _showPrejoin && <Prejoin />}
             </div>
         );
-    }
-
-    /**
-     * Sets custom background opacity based on config. It also applies the
-     * opacity on parent element, as the parent element is not accessible directly,
-     * only though it's child.
-     *
-     * @param {Object} element - The DOM element for which to apply opacity.
-     *
-     * @private
-     * @returns {void}
-     */
-    _setBackground(element) {
-        if (!element) {
-            return;
-        }
-
-        if (this.props._backgroundAlpha !== undefined) {
-            const elemColor = element.style.background;
-            const alphaElemColor = setColorAlpha(elemColor, this.props._backgroundAlpha);
-
-            element.style.background = alphaElemColor;
-            if (element.parentElement) {
-                const parentColor = element.parentElement.style.background;
-                const alphaParentColor = setColorAlpha(parentColor, this.props._backgroundAlpha);
-
-                element.parentElement.style.background = alphaParentColor;
-            }
-        }
     }
 
     /**
@@ -290,39 +282,6 @@ class Conference extends AbstractConference<Props, *> {
      */
     _onFullScreenChange() {
         this.props.dispatch(fullScreenChanged(APP.UI.isFullScreen()));
-    }
-
-    /**
-     * Triggers iframe API mouseEnter event.
-     *
-     * @param {MouseEvent} event - The mouse event.
-     * @private
-     * @returns {void}
-     */
-    _onMouseEnter(event) {
-        APP.API.notifyMouseEnter(event);
-    }
-
-    /**
-     * Triggers iframe API mouseLeave event.
-     *
-     * @param {MouseEvent} event - The mouse event.
-     * @private
-     * @returns {void}
-     */
-    _onMouseLeave(event) {
-        APP.API.notifyMouseLeave(event);
-    }
-
-    /**
-     * Triggers iframe API mouseMove event.
-     *
-     * @param {MouseEvent} event - The mouse event.
-     * @private
-     * @returns {void}
-     */
-    _onMouseMove(event) {
-        APP.API.notifyMouseMove(event);
     }
 
     /**
@@ -356,6 +315,9 @@ class Conference extends AbstractConference<Props, *> {
         dispatch(connect());
 
         maybeShowSuboptimalExperienceNotification(dispatch, t);
+
+        interfaceConfig.filmStripOnly
+            && dispatch(setToolboxAlwaysVisible(true));
     }
 }
 
@@ -368,15 +330,11 @@ class Conference extends AbstractConference<Props, *> {
  * @returns {Props}
  */
 function _mapStateToProps(state) {
-    const { backgroundAlpha, mouseMoveCallbackInterval } = state['features/base/config'];
-
     return {
         ...abstractMapStateToProps(state),
-        _backgroundAlpha: backgroundAlpha,
+        _iAmRecorder: state['features/base/config'].iAmRecorder,
         _isLobbyScreenVisible: state['features/base/dialog']?.component === LobbyScreen,
-        _isParticipantsPaneVisible: getParticipantsPaneOpen(state),
         _layoutClassName: LAYOUT_CLASSNAMES[getCurrentLayout(state)],
-        _mouseMoveCallbackInterval: mouseMoveCallbackInterval,
         _roomName: getConferenceNameForTitle(state),
         _showPrejoin: isPrejoinPageVisible(state)
     };

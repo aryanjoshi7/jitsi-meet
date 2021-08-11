@@ -18,7 +18,8 @@ type Props = AbstractButtonProps & {
     /**
      * The redux {@code dispatch} function.
      */
-    dispatch: Function
+    dispatch: Function,
+    meeting_id: any
 };
 
 /**
@@ -63,6 +64,7 @@ class HangupButton extends AbstractHangupButton<Props, *> {
      */
     _doHangup() {
         this._hangup();
+        window.location = `http://localhost:8000/meetings/${this.props.meeting_id}`;
     }
 }
 
